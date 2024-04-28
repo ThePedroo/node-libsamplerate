@@ -1,11 +1,6 @@
 cmake_minimum_required(VERSION 3.1...3.29)
 project(node-libsamplerate)
 
-execute_process(COMMAND git submodule update --init --recursive
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    RESULT_VARIABLE GIT_SUBMODULE_RESULT
-)
-
 set(LIBSAMPLERATE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/libsamplerate")
 
 file(MAKE_DIRECTORY ${LIBSAMPLERATE_DIR}/build)

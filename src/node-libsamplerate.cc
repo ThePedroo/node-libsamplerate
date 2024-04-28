@@ -1,7 +1,6 @@
 #include <math.h>
 
-#include "../deps/include/samplerate.h"
-#include "../deps/include/config.h"
+#include "samplerate.h"
 
 #include "./node-libsamplerate.h"
 
@@ -141,7 +140,6 @@ Napi::Value SampleRateStream::Transform(const Napi::CallbackInfo &info) {
 
   lengthOut = data.output_frames_gen * channels * (depth / 8);
   int *dataOut = new int[lengthOut];
-  int inFramesUsed = data.input_frames_used;
   int frameDiff = data.input_frames - data.input_frames_used;
 
   if (frameDiff != 0)

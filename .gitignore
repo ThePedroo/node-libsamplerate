@@ -7,10 +7,8 @@
 !tests
 !tests/**
 !.gitignore
-!.gitmodules
 !.travis.yml
-!CMakelists.txt
-!example.js
+!binding.gyp
 !index.js
 !LICENSE
 !package.json

@@ -24,16 +24,10 @@
     "wav"
   ],
   "scripts": {
-    "install": "cmake-js rebuild",
-    "test": "nyc mocha test/*.test.js",
-    "build:dev": "cmake-js build --debug",
-    "build": "cmake-js build",
-    "rebuild:dev": "cmake-js rebuild --debug",
-    "rebuild": "cmake-js rebuild",
-    "clean": "node-gyp clean"
+    "install": "mkdir deps/libsamplerate/build && cd deps/libsamplerate/build && cmake .. && make && cd ../../.. && node-gyp configure build",
+    "build:dev": "node-gyp configure build --debug"
   },
   "dependencies": {
-    "cmake-js": "^6.0.0",
     "node-addon-api": "^1.4.0"
   },
   "engines": {

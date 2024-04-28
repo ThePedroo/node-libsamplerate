@@ -1,24 +1,31 @@
 cmake_minimum_required(VERSION 3.1...3.29)
 project(node-libsamplerate)
 
+execute_process(COMMAND git submodule update --init --recursive
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    RESULT_VARIABLE GIT_SUBMODULE_RESULT
+)
+
+set(LIBSAMPLERATE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/libsamplerate")
+
+file(MAKE_DIRECTORY ${LIBSAMPLERATE_DIR}/build)
+
+execute_process(COMMAND ${CMAKE_COMMAND} -E chdir ${LIBSAMPLERATE_DIR}/build ${CMAKE_COMMAND} ..)
+
+execute_process(COMMAND ${CMAKE_COMMAND} --build ${LIBSAMPLERATE_DIR}/build)
+
+execute_process(COMMAND make WORKING_DIRECTORY ${LIBSAMPLERATE_DIR}/build)
+
 set(CMAKE_CXX_STANDARD 11)
-#set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
-
-
-# Build a shared library named after the project from the files in `src/`
 file(GLOB SOURCE_FILES "src/*.cc" "src/*.h")
 add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 
-# Gives our library file a .node extension without any "lib" prefix
 set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "" SUFFIX ".node")
 
-# Essential include files to build a node addon,
-# You should add this line in every CMake.js based project
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_JS_INC})
 
-# Include N-API wrappers
 execute_process(COMMAND node -p "require('node-addon-api').include"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     OUTPUT_VARIABLE NODE_ADDON_API_DIR
@@ -27,16 +34,10 @@ string(REPLACE "\n" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
 string(REPLACE "\"" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
 target_include_directories(${PROJECT_NAME} PRIVATE ${NODE_ADDON_API_DIR})
 
-# Essential library files to link to a node addon
-# You should add this line in every CMake.js based project
 target_link_libraries(${PROJECT_NAME} ${CMAKE_JS_LIB} libsamplerate)
 
 include(ExternalProject)
 ExternalProject_Add(src_project
-    #GIT_REPOSITORY "https://github.com/erikd/libsamplerate.git"
-    #UPDATE_COMMAND git pull "https://github.com/erikd/libsamplerate.git"
-
-    
     CMAKE_ARGS -D CMAKE_POSITION_INDEPENDENT_CODE=on -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
 
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/deps
@@ -46,11 +47,11 @@ ExternalProject_Get_Property(src_project binary_dir)
 add_library(libsamplerate UNKNOWN IMPORTED)
 if(WIN32)
     set_target_properties(libsamplerate PROPERTIES
-        IMPORTED_LOCATION ${binary_dir}/${CMAKE_BUILD_TYPE}/samplerate.lib
+        IMPORTED_LOCATION ../deps/libsamplerate/build/samplerate.lib
     )
 else()
     set_target_properties(libsamplerate PROPERTIES
-        IMPORTED_LOCATION ${binary_dir}/${CMAKE_BUILD_TYPE}/libsamplerate.a 
+        IMPORTED_LOCATION ../deps/libsamplerate/build/libsamplerate.a 
     )
 endif()
 add_dependencies(libsamplerate src_project)

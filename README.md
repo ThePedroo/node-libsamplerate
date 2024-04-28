@@ -23,7 +23,7 @@ Include module;
 `const SampleRate = require('node-libsamplerate');`
 
 Instantiate:
-`const resample = new SampleRate(options);`
+`const resample = new SampleRate.SampleRate(options);`
 where options is an object of the form:
 
 ```javascript

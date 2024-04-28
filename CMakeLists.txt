@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.1...3.29)
 project(node-libsamplerate)
 
 set(CMAKE_CXX_STANDARD 11)

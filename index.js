@@ -2,7 +2,7 @@ import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
 
 import { Transform } from 'stream'
-const { SampleRateStream } = require('./build/Release/libsamplerate.node')
+const { SampleRateStream } = require('./obj/libsamplerate.node')
 
 const defaultOpts = {
   type: 2,

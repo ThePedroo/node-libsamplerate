@@ -8,9 +8,9 @@
 !tests/**
 !.gitignore
 !.travis.yml
-!binding.gyp
 !index.js
 !LICENSE
+!Makefile
 !package.json
 !README.md
 !waveheader.js

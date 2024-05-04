@@ -2,9 +2,11 @@
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-werror
 
-AM_CPPFLAGS = -I$(top_srcdir)/src $(OS_SPECIFIC_INCLUDES)
+AM_CPPFLAGS = -I$(top_srcdir)/include
 
-EXTRA_DIST = autogen.sh libsamplerate.spec.in samplerate.pc.in Make.bat Win32
+EXTRA_DIST = README.md autogen.sh libsamplerate.spec.in samplerate.pc.in  \
+    Octave/generate_filter.m Octave/make_filter.m Octave/measure_filter.m \
+    Octave/Readme.md Win32/libsamplerate-0.def
 
 pkgconfig_DATA = samplerate.pc
 
@@ -17,15 +19,18 @@ test:
 ########
 
 lib_LTLIBRARIES = src/libsamplerate.la
-include_HEADERS = src/samplerate.h
+include_HEADERS = include/samplerate.h
 
-EXTRA_DIST += src/config.h.in src/Version_script.in src/check_asm.sh
+EXTRA_DIST += cmake CMakeLists.txt config.h.cmake docs/CMakeLists.txt   \
+	examples/CMakeLists.txt src/CMakeLists.txt tests/CMakeLists.txt \
+	src/config.h.in src/Version_script.in src/check_asm.sh \
+	tests/streaming_test.c
 CLEANFILES = src/src_sinc.s
 
 # MinGW requires -no-undefined if a DLL is to be built.
 src_libsamplerate_la_LDFLAGS = -no-undefined -version-info $(SHARED_VERSION_INFO) $(SHLIB_VERSION_ARG)
 src_libsamplerate_la_SOURCES = src/samplerate.c src/src_sinc.c src/src_zoh.c src/src_linear.c \
-	src/common.h src/float_cast.h src/fastest_coeffs.h src/mid_qual_coeffs.h src/high_qual_coeffs.h
+	src/common.h src/fastest_coeffs.h src/mid_qual_coeffs.h src/high_qual_coeffs.h
 
 #-------------------------------------------------------------------------------
 # An extra check for bad asm.
@@ -46,60 +51,53 @@ check-asm: src/check_asm.sh src/src_sinc.s src/src_linear.s src/src_zoh.s
 AUTOHEADER=echo
 
 ########
-# doc/ #
+# docs/ #
 ########
 
-dist_html_DATA = doc/SRC.png doc/SRC.css doc/index.html doc/license.html doc/history.html \
-	doc/download.html doc/lists.html doc/quality.html doc/win32.html doc/faq.html doc/api.html \
-	doc/api_simple.html doc/api_callback.html doc/api_full.html doc/api_misc.html
+dist_doc_DATA = docs/SRC.png docs/SRC.css docs/index.md docs/license.md docs/history.md \
+	docs/download.md docs/lists.md docs/quality.md docs/win32.md docs/faq.md docs/api.md \
+	docs/api_simple.md docs/api_callback.md docs/api_full.md docs/api_misc.md docs/bugs.md
 
 #############
 # examples/ #
 #############
 
 if HAVE_LIBSNDFILE
-if HAVE_LIBALSA
 noinst_PROGRAMS = examples/varispeed-play examples/timewarp-file
 
 examples_varispeed_play_SOURCES = examples/varispeed-play.c examples/audio_out.c examples/audio_out.h
-examples_varispeed_play_CFLAGS = $(SNDFILE_CFLAGS) $(ALSA_CFLAGS)
-examples_varispeed_play_LDADD = src/libsamplerate.la $(SNDFILE_LIBS) $(ALSA_LIBS) $(OS_SPECIFIC_LINKS)
+examples_varispeed_play_CFLAGS = $(SNDFILE_CFLAGS) $(AUDIO_CFLAGS)
+examples_varispeed_play_LDADD = src/libsamplerate.la $(SNDFILE_LIBS) $(AUDIO_LIBS)
 
 examples_timewarp_file_SOURCES = examples/timewarp-file.c
-examples_timewarp_file_CFLAGS = $(SNDFILE_CFLAGS) $(ALSA_CFLAGS)
-examples_timewarp_file_LDADD = src/libsamplerate.la $(SNDFILE_LIBS) $(ALSA_LIBS)
-endif
+examples_timewarp_file_CFLAGS = $(SNDFILE_CFLAGS)
+examples_timewarp_file_LDADD = src/libsamplerate.la $(SNDFILE_LIBS)
 endif
 
 ##########
 # tests/ #
 ##########
 
-check_PROGRAMS = tests/misc_test tests/termination_test tests/simple_test tests/callback_test \
-	tests/reset_test tests/multi_channel_test tests/snr_bw_test tests/float_short_test \
-	tests/varispeed_test tests/callback_hang_test tests/src-evaluate tests/throughput_test \
-	tests/multichan_throughput_test tests/downsample_test tests/clone_test tests/nullptr_test
-
-check: $(check_PROGRAMS)
-	date
-	uname -a
-	tests/misc_test
-	tests/termination_test
-	tests/callback_hang_test
-	tests/downsample_test
-	tests/simple_test
-	tests/callback_test
-	tests/reset_test
-	tests/clone_test
-	tests/nullptr_test
-	tests/multi_channel_test
+TESTS = \
+	tests/callback_hang_test \
+	tests/callback_test \
+	tests/clone_test \
+	tests/downsample_test \
+	tests/float_short_test \
+	tests/misc_test \
+	tests/multi_channel_test \
+	tests/nullptr_test \
+	tests/reset_test \
+	tests/simple_test \
+	tests/snr_bw_test \
+	tests/termination_test \
+	tests/throughput_test \
 	tests/varispeed_test
-	tests/float_short_test
-	tests/snr_bw_test
-	tests/throughput_test
-	@echo "-----------------------------------------------------------------"
-	@echo "  ${PACKAGE}-${VERSION} passed all tests."
-	@echo "-----------------------------------------------------------------"
+
+check_PROGRAMS = \
+	$(TESTS) \
+	tests/multichan_throughput_test \
+	tests/src-evaluate
 
 #===============================================================================
 
@@ -155,10 +153,6 @@ tests_multichan_throughput_test_SOURCES = tests/multichan_throughput_test.c test
 tests_multichan_throughput_test_CFLAGS = $(FFTW3_CFLAGS)
 tests_multichan_throughput_test_LDADD = src/libsamplerate.la $(FFTW3_LIBS)
 
-if HAVE_LIBSNDFILE
-check_PROGRAMS += tests/src-evaluate
-
 tests_src_evaluate_SOURCES = tests/src-evaluate.c tests/calc_snr.c tests/util.c
 tests_src_evaluate_CFLAGS = $(SNDFILE_CFLAGS) $(FFTW3_CFLAGS)
 tests_src_evaluate_LDADD = $(SNDFILE_LIBS) $(FFTW3_LIBS)
-endif

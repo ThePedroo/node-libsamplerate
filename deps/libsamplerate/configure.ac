@@ -1,10 +1,10 @@
-# Copyright (C) 2002-2017 Erik de Castro Lopo (erikd AT mega-nerd DOT com).
+# Copyright (C) 2002-2021 Erik de Castro Lopo (erikd AT mega-nerd DOT com).
 
 dnl Require autoconf version >= 2.69)
 AC_PREREQ([2.69])
 
-AC_INIT([libsamplerate],[0.1.9],[erikd@mega-nerd.com],
-		[libsamplerate],[http://www.mega-nerd.com/libsamplerate/])
+AC_INIT([libsamplerate],[0.2.2],[erikd@mega-nerd.com],
+		[libsamplerate],[https://github.com/libsndfile/libsamplerate/])
 
 dnl Check whether we want to set defaults for CFLAGS, CPPFLAGS and LDFLAGS
 AC_MSG_CHECKING([whether configure should try to set CFLAGS/CPPFLAGS/LDFLAGS])
@@ -27,7 +27,7 @@ AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_HEADERS([src/config.h])
 
-AM_INIT_AUTOMAKE([1.14 foreign dist-bzip2 no-dist-gzip subdir-objects])
+AM_INIT_AUTOMAKE([1.14 foreign dist-xz no-dist-gzip subdir-objects serial-tests])
 AM_SILENT_RULES([yes])
 
 dnl ====================================================================================
@@ -54,7 +54,7 @@ dnl Catch ancient versions of pkg-config below 0.27
 AX_REQUIRE_DEFINED([PKG_INSTALLDIR])
 PKG_INSTALLDIR
 
-LT_INIT
+LT_INIT([disable-static])
 LT_PROG_RC
 
 dnl ====================================================================================
@@ -73,22 +73,23 @@ dnl      age.
 dnl   6. If any interfaces have been removed since the last public release, then set age
 dnl      to 0.
 
-CLEAN_VERSION=`echo $PACKAGE_VERSION | $SED "s/p.*//"`
-VERSION_MINOR=`echo $CLEAN_VERSION | $SED "s/.*\.//"`
+dnl   This is libtool version of library, we add it to `--version-info` property.
 
-SHARED_VERSION_INFO="1:$VERSION_MINOR:1"
+m4_define([lt_current], [2])
+m4_define([lt_revision], [2])
+m4_define([lt_age], [2])
+
+dnl This is ABI version for linker scripts, CMake uses the same format for
+dnl VERSION property of shared library.
+dnl The formula is: c:r:a -> c-a:a:r
+
+m4_define([abi_version_major], [m4_eval(lt_current - lt_age)])
+m4_define([abi_version_minor], [lt_age])
+m4_define([abi_version_patch], [lt_revision])
 
 dnl ====================================================================================
 
-AS_IF([test "x${build_os}${host_os}" = "xmingw32mingw32"], [
-		AC_CHECK_PROG(DLLTOOL, dlltool, dlltool)
-		AC_CHECK_PROG(DLLWRAP, dllwrap, dllwrap)
-		AC_CHECK_PROG(PEXPORTS, pexports, pexports)
-	])
-
-AC_HEADER_STDC
-
-AC_CHECK_HEADERS([stdint.h sys/times.h])
+AC_CHECK_HEADERS([stdbool.h stdint.h sys/times.h unistd.h])
 
 dnl ====================================================================================
 dnl  Couple of initializations here. Fill in real values later.
@@ -112,6 +113,15 @@ AC_ARG_ENABLE([alsa],
 
 AC_ARG_ENABLE([fftw],
 	[AS_HELP_STRING([--disable-fftw], [disable usage of FFTW (default=autodetect)])], [], [enable_fftw=auto])
+
+AC_ARG_ENABLE([sinc_fast],
+	[AS_HELP_STRING([--disable-sinc-fast], [disable sinc fast converter support (default=autodetect)])], [], [enable_sinc_fast=yes])
+
+AC_ARG_ENABLE([sinc_medium],
+	[AS_HELP_STRING([--disable-sinc-medium], [disable sinc balanced converter support (default=autodetect)])], [], [enable_sinc_medium=yes])
+
+AC_ARG_ENABLE([sinc_best],
+	[AS_HELP_STRING([--disable-sinc-best], [disable sinc best converter support (default=autodetect)])], [], [enable_sinc_best=yes])
 
 dnl ====================================================================================
 dnl  Check types and their sizes.
@@ -142,8 +152,14 @@ dnl  Check for functions.
 
 AC_CHECK_FUNCS([malloc calloc free memcpy memmove alarm signal])
 
-AC_SEARCH_LIBS([floor], [m], [], [
-		AC_MSG_ERROR([unable to find the floor() function!])
+AS_CASE([${host_os}],
+	dnl These system don't have libm, or don't need it
+	dnl The list is from LT_LIB_M of libtool-2.4.6 with mingw added to it.
+	[darwin*|mingw*|cygwin*|haiku*|beos*|cegcc*|pw32*],[],
+	[*], [
+		AC_SEARCH_LIBS([floor], [m], [], [
+			AC_MSG_ERROR([unable to find the floor() function!])
+		])
 	])
 AC_CHECK_FUNCS([floor ceil fmod lrint lrintf])
 
@@ -199,7 +215,6 @@ AS_IF([test "x$enable_alsa" != "xno"], [
 					])
 			])
 	])
-AM_CONDITIONAL([HAVE_LIBALSA], [test "x$enable_alsa" = "xyes"])
 
 dnl ====================================================================================
 dnl  Check for libfftw3 which is required for the test and example programs.
@@ -220,10 +235,31 @@ AS_IF([test "x$enable_fftw" != "xno"], [
 	])
 
 dnl ====================================================================================
+dnl  Set Sinc Quality.
+
+AS_IF([test "x$enable_sinc_fast" != "xno"], [
+		AC_DEFINE_UNQUOTED([ENABLE_SINC_FAST_CONVERTER], [${enable_sinc_fast}], [Enable sinc fast converter.])
+	], [
+		enable_sinc_fast="no"
+	])
+
+AS_IF([test "x$enable_sinc_medium" != "xno"], [
+		AC_DEFINE_UNQUOTED([ENABLE_SINC_MEDIUM_CONVERTER], [${enable_sinc_medium}], [Enable sinc balanced converter.])
+	], [
+		enable_sinc_medium="no"
+	])
+
+AS_IF([test "x$enable_sinc_best" != "xno"], [
+		AC_DEFINE_UNQUOTED([ENABLE_SINC_BEST_CONVERTER], [${enable_sinc_best}], [Enable sinc best converter.])
+	], [
+		enable_sinc_best="no"
+	])
+
+dnl ====================================================================================
 dnl  Compiler stuff.
 
 AS_IF([test "x$enable_flags_setting" = "xyes"], [
-		AX_APPEND_COMPILE_FLAGS([-O2 -pipe], [CFLAGS])
+		AX_APPEND_COMPILE_FLAGS([-DHAVE_CONFIG_H -O2 -pipe -DNDEBUG], [CFLAGS])
 
 		AS_CASE([${host_os}],
 			[darwin*], [
@@ -234,6 +270,38 @@ AS_IF([test "x$enable_flags_setting" = "xyes"], [
 		AX_APPEND_LINK_FLAGS([${ldflags_test}], [LDFLAGS])
 	])
 
+dnl ====================================================================================
+dnl  Exported symbols control.
+
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden -Werror"
+AC_MSG_CHECKING([if compiler supports visibility attributes])
+AC_LANG_PUSH([C])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+		__attribute__((visibility("default"))) int foo(void);
+		__attribute__((visibility("hidden")))  int bar(void);
+		int foo(void) { return 0; }
+		int bar(void) { return 1; }]], [])],
+	[have_visibility=yes],[have_visibility=no])
+AC_LANG_POP([C])
+AC_MSG_RESULT([$have_visibility])
+CFLAGS="$saved_CFLAGS"
+AS_IF([test "x$have_visibility" = "xyes"], [
+		AC_DEFINE([HAVE_VISIBILITY], [1], [Define to 1 if the compiler supports simple visibility declarations.])
+	])
+
+AS_IF([test "x$lt_cv_prog_gnu_ld" = "xyes"], [
+		AS_CASE([${host_os}],
+			[mingw*|cygwin*], [
+				SHLIB_VERSION_ARG="-export-symbols \$(top_srcdir)/Win32/libsamplerate-0.def"],
+			[*], [
+				SHLIB_VERSION_ARG="-Wl,--version-script=\$(top_builddir)/src/Version_script"
+			])
+	])
+
+dnl ====================================================================================
+dnl  Warning flags.
+
 AS_IF([test "x$enable_werror" = "xyes"], [
 		AX_APPEND_COMPILE_FLAGS([-Werror], [CFLAGS])
 	])
@@ -241,53 +309,33 @@ AS_IF([test "x$enable_werror" = "xyes"], [
 AX_APPEND_COMPILE_FLAGS([-W -Wstrict-prototypes -Wmissing-prototypes -Wall -Waggregate-return -Wcast-align -Wcast-qual -Wnested-externs -Wshadow -Wpointer-arith], [CFLAGS])
 
 dnl ====================================================================================
-dnl  GCC stuff.
+dnl  Set OS-specific audio-out flags.
 
-AS_IF([test "x$ax_cv_c_compiler_vendor" = "xgnu"], [
-		# OS specific tweaks.
-		# Disable -Wall for Apple Darwin/Rhapsody.
-		# System headers on these systems are broken.
-		AS_CASE([${host_os}],
-			[darwin* | rhapsody*], [
-				temp_CFLAGS=`echo $CFLAGS | sed "s/-Wall//"`
-				CFLAGS=$temp_CFLAGS],
-			[linux*|kfreebsd*-gnu*|gnu*], [
-				SHLIB_VERSION_ARG="-Wl,--version-script=\$(top_builddir)/src/Version_script"
-			])
-	])
-
-dnl ====================================================================================
-dnl  Find known host OS.
-
-OS_SPECIFIC_INCLUDES=""
-os_is_win32=0
+AUDIO_CFLAGS=""
+AUDIO_LIBS=""
 
 AS_CASE([${host_os}],
-	[darwin* | rhapsody*], [
-		OS_SPECIFIC_INCLUDES="-fpascal-strings -I/Developer/Headers/FlatCarbon"
-		OS_SPECIFIC_LINKS="-framework CoreAudio"],
+	[darwin*], [dnl this requires 10.5+
+		AUDIO_LIBS="-framework CoreAudio"],
 	[mingw32*], [
-		OS_SPECIFIC_LINKS="-lwinmm"
-		os_is_win32=1],
-	[
-		OS_SPECIFIC_INCLUDES=""
-		OS_SPECIFIC_LINKS=""
-	])
+		AUDIO_LIBS="-lwinmm"],
+	[linux*], [dnl have OSS as fallback if no ALSA
+		AS_IF([test "x$enable_alsa" = "xyes"], [
+			AUDIO_LIBS="$ALSA_LIBS"
+			AUDIO_CFLAGS="$ALSA_CFLAGS"])],
+	[])
 
 dnl ====================================================================================
 dnl  Now use the information from the checking stage.
 
-AC_DEFINE_UNQUOTED([OS_IS_WIN32], [${os_is_win32}], [Set to 1 if compiling for Win32])
-
 AC_SUBST(SHLIB_VERSION_ARG)
-AC_SUBST(SHARED_VERSION_INFO)
-AC_SUBST(OS_SPECIFIC_INCLUDES)
-AC_SUBST(OS_SPECIFIC_LINKS)
+AC_SUBST([SHARED_VERSION_INFO], [lt_current:lt_revision:lt_age])
+AC_SUBST(AUDIO_CFLAGS)
+AC_SUBST(AUDIO_LIBS)
 
 AC_CONFIG_FILES([
 		Makefile
 		src/Version_script
-		Win32/Makefile.mingw
 		libsamplerate.spec
 		samplerate.pc
 	])
@@ -323,6 +371,11 @@ AC_MSG_RESULT([
     Have libsndfile : ..................... ${enable_sndfile}
     Have ALSA : ........................... ${enable_alsa}
     Have FFTW : ........................... ${enable_fftw}
+
+  Converter configuration :
+    Sinc fast : ........................... ${enable_sinc_fast}
+    Sinc balanced : ....................... ${enable_sinc_medium}
+    Sinc best : ........................... ${enable_sinc_best}
 
   Installation directories :
 

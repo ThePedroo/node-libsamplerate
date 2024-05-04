@@ -1,140 +1,147 @@
-cmake_minimum_required(VERSION 3.1)
-project(libsamplerate VERSION 0.1.9 LANGUAGES C)
+cmake_minimum_required(VERSION 3.1..3.18)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+# Policies
+
+# Include file check macros honor CMAKE_REQUIRED_LIBRARIES, CMake >= 3.12
+if(POLICY CMP0075)
+  cmake_policy(SET CMP0075 NEW)
+endif()
+
+# MSVC runtime library flags are selected by an abstraction, CMake >= 3.15
+# This policy still need to be set even with cmake_minimum_required() command above.
+if(POLICY CMP0091)
+  if(DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+    cmake_policy(SET CMP0091 NEW)
+  else()
+    cmake_policy(SET CMP0091 OLD)
+  endif()
+endif()
+
+project(libsamplerate VERSION 0.2.2 LANGUAGES C)
+
+# Configuration
+
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(IS_ROOT_PROJECT ON)
+else()
+  set(IS_ROOT_PROJECT OFF)
+endif()
+
+option(LIBSAMPLERATE_EXAMPLES "Enable to generate examples" ${IS_ROOT_PROJECT})
+option(LIBSAMPLERATE_INSTALL "Enable to add install directives" ${IS_ROOT_PROJECT})
+
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
 include(TestBigEndian)
 include(CheckFunctionExists)
-include(CheckIncludeFiles)
+include(CheckIncludeFile)
+include(CheckLibraryExists)
 include(CheckSymbolExists)
-include(CheckTypeSize)
-include(ClipMode)
+include(GNUInstallDirs)
 
-set(SAMPLERATE_SRC
-	${PROJECT_SOURCE_DIR}/src/samplerate.c
-	${PROJECT_SOURCE_DIR}/src/src_linear.c
-	${PROJECT_SOURCE_DIR}/src/src_sinc.c
-	${PROJECT_SOURCE_DIR}/src/src_zoh.c)
+if(DEFINED LIBSAMPLERATE_TESTS)
+  message(DEPRECATION "LIBSAMPLERATE_TESTS option deprecated, use BUILD_TESTING option instead.")
+  set(BUILD_TESTING ${LIBSAMPLERATE_TESTS})
+endif()
+include(CTest)
 
-if(WIN32)
-	set(OS_IS_WIN32 TRUE)
-	set(SAMPLERATE_SRC
-		${SAMPLERATE_SRC}
-		${PROJECT_SOURCE_DIR}/Win32/libsamplerate-0.def)
-	include_directories(Win32)
+add_definitions(-DHAVE_CONFIG_H)
+include_directories(${PROJECT_BINARY_DIR})
+if(MSVC)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
+
+if(NOT (WIN32 OR APPLE OR CYGWIN OR HAIKU OR BEOS))
+  find_library(MATH_LIBRARY m)
+  if(MATH_LIBRARY)
+    set(LIBM_REQUIRED 1)
+    if(LIBM_REQUIRED)
+      list(APPEND CMAKE_REQUIRED_LIBRARIES m)
+      if(LIBM_REQUIRED)
+        link_libraries(${MATH_LIBRARY})
+      endif()
+    endif()
+  endif()
+endif()
+
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+  option(LIBSAMPLERATE_ENABLE_SANITIZERS "Enable ASAN and UBSAN" OFF)
+
+  if(LIBSAMPLERATE_ENABLE_SANITIZERS)
+    # Use ASAN and UBSAN, make it fail on any error, improve stack traces
+    set(sanitizer_flags -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer)
+
+    add_compile_options(${sanitizer_flags})
+    string(REPLACE ";" " " sanitizer_flags "${sanitizer_flags}")
+    string(APPEND CMAKE_EXE_LINKER_FLAGS " ${sanitizer_flags}")
+    string(APPEND CMAKE_MODULE_LINKER_FLAGS " ${sanitizer_flags}")
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS " ${sanitizer_flags}")
+  endif()
 endif()
 
 test_big_endian(CPU_IS_BIG_ENDIAN)
 if(CPU_IS_BIG_ENDIAN)
-	set(CPU_IS_LITTLE_ENDIAN 0)
+  set(CPU_IS_LITTLE_ENDIAN 0)
 else()
-	set(CPU_IS_LITTLE_ENDIAN 1)
+  set(CPU_IS_LITTLE_ENDIAN 1)
 endif()
 
-check_function_exists(pow RESULT)
-if(NOT RESULT)
-  list(APPEND CMAKE_REQUIRED_LIBRARIES m)
-  set(NEED_MATH)
-endif()
-check_function_exists(alarm HAVE_ALARM)
-check_function_exists(lrint HAVE_LRINT)
-check_function_exists(lrintf HAVE_LRINTF)
-check_function_exists(signal HAVE_SIGNAL)
+check_include_file(stdbool.h HAVE_STDBOOL_H)
+check_include_file(unistd.h HAVE_UNISTD_H)
 
-check_include_files(stdint.h HAVE_STDINT)
-check_include_files(sys/times.h HAVE_SYS_TIMES_H)
+# For examples and tests
 
-check_symbol_exists(SIGALRM signal.h HAVE_SIGALRM)
+find_package(PkgConfig)
 
-check_type_size(int SIZEOF_INT)
-check_type_size(long SIZEOF_LONG)
+if(LIBSAMPLERATE_EXAMPLES OR BUILD_TESTING)
+  if((NOT VCPKG_TOOLCHAIN) AND PKG_CONFIG_FOUND AND (NOT CMAKE_VERSION VERSION_LESS 3.6))
+    pkg_check_modules(SndFile sndfile IMPORTED_TARGET)
+    if(SndFile_FOUND)
+      set(SNDFILE_TARGET PkgConfig::SndFile)
+    endif()
+  else()
+    find_package(SndFile)
+    if(SndFile_FOUND)
+      set(SNDFILE_TARGET SndFile::sndfile)
+    endif()
+  endif()
 
-# This will set CPU_CLIPS_NEGATIVE and CPU_CLIPS_POSITIVE
-clip_mode()
-
-find_package(ALSA)
-set(HAVE_ALSA ${ALSA_FOUND})
-if(ALSA_FOUND)
-  include_directories("${ALSA_INCLUDE_DIR}")
+  set(HAVE_SNDFILE ${SndFile_FOUND})
 endif()
 
-find_package(Sndfile)
-set(HAVE_SNDFILE ${SNDFILE_FOUND})
-if(SNDFILE_FOUND)
-  include_directories("${SNDFILE_INCLUDE_DIR}")
+# SampleRate library
+
+add_subdirectory(src)
+
+# Tests
+
+# BUILD_TESTING is declared by CTest module and is ON by default
+if(BUILD_TESTING)
+  add_subdirectory(tests)
 endif()
 
-find_package(FFTW)
-set(HAVE_FFTW3 ${FFTW_FOUND})
-if(FFTW_FOUND)
-  include_directories("${FFTW_INCLUDE_DIR}")
+# Examples
+
+if(LIBSAMPLERATE_EXAMPLES)
+  add_subdirectory(examples)
 endif()
 
-configure_file(${PROJECT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+configure_file(config.h.cmake config.h)
 
-add_library(samplerate ${SAMPLERATE_SRC})
-
-if(BUILD_SHARED_LIBS AND WIN32)
-	if (MSVC)
-		set_target_properties(samplerate PROPERTIES OUTPUT_NAME "libsamplerate-0")
-	else()
-		set_target_properties(samplerate PROPERTIES OUTPUT_NAME "samplerate-0")
-	endif()
+if(LIBSAMPLERATE_INSTALL)
+  add_subdirectory(docs)
 endif()
 
-target_include_directories(samplerate PUBLIC
-	${PROJECT_SOURCE_DIR}/src
-	${CMAKE_CURRENT_BINARY_DIR})
+# Packaging support
 
-enable_testing()
-
-file(GLOB TEST_SRCS ${PROJECT_SOURCE_DIR}/tests/*_test.c)
-
-foreach(testSrc ${TEST_SRCS})
-	get_filename_component(testName ${testSrc} NAME_WE)
-	add_executable(${testName}
-		${testSrc}
-		${PROJECT_SOURCE_DIR}/tests/util.c
-		${PROJECT_SOURCE_DIR}/tests/calc_snr.c)
-	target_link_libraries(${testName} PUBLIC samplerate ${CMAKE_REQUIRED_LIBRARIES})
-	if(FFTW_FOUND)
-		target_link_libraries(${testName} PUBLIC ${FFTW_LIBRARY})
-	endif()
-	add_test(NAME ${testName} COMMAND ${testName})
-endforeach(testSrc)
-
-set(EXAMPLE_SRCS
-	${PROJECT_SOURCE_DIR}/examples/timewarp-file.c
-	${PROJECT_SOURCE_DIR}/examples/varispeed-play.c)
-
-foreach(exampleSrc ${EXAMPLE_SRCS})
-	get_filename_component(exampleName ${exampleSrc} NAME_WE)
-	add_executable(${exampleName}
-		${exampleSrc}
-		${PROJECT_SOURCE_DIR}/examples/audio_out.c)
-	target_link_libraries(${exampleName} PUBLIC samplerate ${CMAKE_REQUIRED_LIBRARIES})
-	if(ALSA_FOUND)
-		target_link_libraries(${exampleName} PUBLIC ${ALSA_LIBRARY})
-	endif()
-	if(SNDFILE_FOUND)
-		target_link_libraries(${exampleName} PUBLIC ${SNDFILE_LIBRARY})
-	endif()
-	if(WIN32)
-		target_link_libraries(${exampleName} PUBLIC winmm)
-	endif()
-endforeach(exampleSrc)
-
-set(prefix ${CMAKE_INSTALL_PREFIX})
-set(exec_prefix "\${prefix}")
-set(includedir "\${prefix}/include")
-set(libdir "\${exec_prefix}/lib")
-set(VERSION "${PROJECT_VERSION}")
-if(NEED_MATH)
-	set(LIBS "-lm")
+# See https://cmake.org/cmake/help/v3.12/release/3.12.html#cpack
+if(CMAKE_VERSION VERSION_LESS 3.12)
+  set(CPACK_PACKAGE_VERSION_MAJOR ${PROJECT_VERSION_MAJOR})
+  set(CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
+  set(CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 endif()
-configure_file(samplerate.pc.in samplerate.pc @ONLY)
 
-install(TARGETS samplerate DESTINATION lib)
-install(FILES src/samplerate.h DESTINATION include)
-install(DIRECTORY doc/ DESTINATION share/doc/libsamplerate)
-install(FILES ${CMAKE_BINARY_DIR}/samplerate.pc DESTINATION lib/pkgconfig)
+include(CPack)

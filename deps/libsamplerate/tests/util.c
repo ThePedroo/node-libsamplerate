@@ -3,8 +3,12 @@
 ** All rights reserved.
 **
 ** This code is released under 2-clause BSD license. Please see the
-** file at : https://github.com/erikd/libsamplerate/blob/master/COPYING
+** file at : https://github.com/libsndfile/libsamplerate/blob/master/COPYING
 */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,12 +41,12 @@ gen_windowed_sines (int freq_count, const double *freqs, double max, float *outp
 			} ;
 
 		for (k = 0 ; k < output_len ; k++)
-			output [k] += amplitude * sin (freqs [freq] * (2 * k) * M_PI + phase) ;
+			output [k] = (float) (output [k] + (amplitude * sin (freqs [freq] * (2 * k) * M_PI + phase))) ;
 		} ;
 
 	/* Apply Hanning Window. */
 	for (k = 0 ; k < output_len ; k++)
-		output [k] *= 0.5 - 0.5 * cos ((2 * k) * M_PI / (output_len - 1)) ;
+		output [k] = (float) (output [k] * (0.5 - 0.5 * cos ((2 * k) * M_PI / (output_len - 1)))) ;
 
 	/*	data [k] *= 0.3635819 - 0.4891775 * cos ((2 * k) * M_PI / (output_len - 1))
 					+ 0.1365995 * cos ((4 * k) * M_PI / (output_len - 1))
@@ -176,6 +180,11 @@ get_cpu_name (void)
 	search = "hw.model" ;
 	is_pipe = 1 ;
 #else
+	(void) search ;
+	(void) buffer ;
+	(void) file ;
+	(void) is_pipe ;
+
 	return name;
 #endif
 

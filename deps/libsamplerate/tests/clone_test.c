@@ -3,8 +3,12 @@
 ** All rights reserved.
 **
 ** This code is released under 2-clause BSD license. Please see the
-** file at : https://github.com/erikd/libsamplerate/blob/master/COPYING
+** file at : https://github.com/libsndfile/libsamplerate/blob/master/COPYING
 */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,7 +32,7 @@ clone_test (int converter)
 	SRC_STATE* src_state_cloned ;
 	SRC_DATA src_data, src_data_cloned ;
 
-	int error, frame, ch, index ;
+	int error, frame, ch, idx ;
 
 	printf ("        clone_test          (%-28s) ....... ", src_get_name (converter)) ;
 	fflush (stdout) ;
@@ -99,8 +103,8 @@ clone_test (int converter)
 
 	for (ch = 0 ; ch < NUM_CHANNELS ; ch++)
 	{	for (frame = 0 ; frame < src_data.output_frames_gen ; frame++)
-		{	index = ch * NUM_CHANNELS + ch ;
-			if (output [index] != output_cloned [index])
+		{	idx = ch * NUM_CHANNELS + ch ;
+			if (output[idx] != output_cloned[idx])
 			{	printf ("\n\nLine %d : cloned data does not equal original data at channel %d, frame %d\n\n",
 						__LINE__, ch, frame) ;
 				exit (1) ;
@@ -108,8 +112,8 @@ clone_test (int converter)
 			} ;
 		} ;
 
-	src_state = src_delete (src_state) ;
-	src_state_cloned = src_delete (src_state_cloned) ;
+	src_delete (src_state) ;
+	src_delete (src_state_cloned) ;
 
 	puts ("ok") ;
 } /* clone_test */
@@ -121,8 +125,9 @@ main (void)
 
 	clone_test (SRC_ZERO_ORDER_HOLD) ;
 	clone_test (SRC_LINEAR) ;
+#ifdef ENABLE_SINC_FAST_CONVERTER
 	clone_test (SRC_SINC_FASTEST) ;
-
+#endif
 	puts("");
 
 	return 0 ;

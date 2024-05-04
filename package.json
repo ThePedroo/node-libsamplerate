@@ -24,7 +24,7 @@
     "wav"
   ],
   "scripts": {
-    "install": "cd deps && cd libsamplerate && mkdir build && cd build && cmake .. && make && cd .. && cd .. && cd .. && make",
+    "install": "cd deps && cd libsamplerate && (mkdir build || true) && cd build && cmake .. && make && cd .. && cd .. && cd .. && make",
     "build:dev": "node-gyp configure build --debug"
   },
   "dependencies": {

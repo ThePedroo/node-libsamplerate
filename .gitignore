@@ -12,5 +12,6 @@
 !LICENSE
 !Makefile
 !package.json
+!post-install.js
 !README.md
 !waveheader.js

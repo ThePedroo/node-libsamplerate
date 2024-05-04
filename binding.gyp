@@ -11,7 +11,7 @@
         "deps/libsamplerate/include"
       ],
       "libraries": [
-        "-Ldeps/libsamplerate/build/src -lsamplerate",
+        "-L../deps/libsamplerate/build/src", "-lsamplerate",
       ],
       "cflags_cc!": [ "-Wall", "-Wextra", "-Wpedantic", "-fno-exceptions" ],
       "defines": [ "NAPI_CPP_EXCEPTIONS" ]

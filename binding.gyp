@@ -8,10 +8,10 @@
       ],
       "include_dirs": [
         "<!@(node -p \"require('node-addon-api').include\")",
-        "../deps/libsamplerate/src"
+        "deps/libsamplerate/include"
       ],
       "libraries": [
-        "-Wl,-rpath, ../deps/libsamplerate/build/libsamplerate.a",
+        "-Ldeps/libsamplerate/build/src -lsamplerate",
       ],
       "cflags_cc!": [ "-Wall", "-Wextra", "-Wpedantic", "-fno-exceptions" ],
       "defines": [ "NAPI_CPP_EXCEPTIONS" ]

@@ -5,7 +5,60 @@ import { spawn } from 'node:child_process'
 (async () => {
   console.log('[node-libsamplerate] Welcome. This script will prepare the project for use.')
 
-  console.log('[node-libsamplerate] Checking whether or not libsamplerate has been built')
+  console.log('[node-libsamplerate] Checking if your machine has node-gyp, cmake and make installed')
+
+  try {
+    await new Promise((resolve, reject) => {
+      const nodeGyp = spawn('node-gyp', [ '--version' ])
+
+      nodeGyp.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error('node-gyp not found'))
+      })
+    })
+
+    console.log('[node-libsamplerate] node-gyp found')
+  } catch (err) {
+    console.error(`[node-libsamplerate] Failed to run node-gyp: ${err.message}`)
+
+    process.exit(1)
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      const cmake = spawn('cmake', [ '--version' ])
+
+      cmake.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error('cmake not found'))
+      })
+    })
+
+    console.log('[node-libsamplerate] cmake found')
+  } catch (err) {
+    console.error(`[node-libsamplerate] Failed to run cmake: ${err.message}`)
+
+    process.exit(1)
+  }
+
+  try {
+    await new Promise((resolve, reject) => {
+      const make = spawn('make', [ '--version' ])
+
+      make.on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error('make not found'))
+      })
+    })
+
+    console.log('[node-libsamplerate] make found')
+  } catch (err) {
+    console.error(`[node-libsamplerate] Failed to run make: ${err.message}`)
+
+    process.exit(1)
+  }
+
+  console.log('[node-libsamplerate] OK. Everything good. Checking whether or not libsamplerate has been built')
 
   const buildExists = fs.existsSync('deps/libsamplerate/build')
 

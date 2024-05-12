@@ -7,56 +7,68 @@ import { spawn } from 'node:child_process'
 
   console.log('[node-libsamplerate] Checking if your machine has node-gyp, cmake and make installed')
 
-  try {
-    await new Promise((resolve, reject) => {
-      const nodeGyp = spawn('node-gyp', [ '--version' ])
+  await new Promise((resolve) => {
+    const nodeGyp = spawn('node-gyp', [ '--version' ])
 
-      nodeGyp.on('close', (code) => {
-        if (code === 0) resolve()
-        else reject(new Error('node-gyp not found'))
-      })
+    nodeGyp.on('close', (code) => {
+      if (code === 0) resolve()
+      else {
+        console.error('[node-libsamplerate] node-gyp not found. In this case, it existed with non-0 code.')
+
+        process.exit(1)
+      }
     })
 
-    console.log('[node-libsamplerate] node-gyp found')
-  } catch (err) {
-    console.error(`[node-libsamplerate] Failed to run node-gyp: ${err.message}`)
+    nodeGyp.on('error', (err) => {
+      console.error(`[node-libsamplerate] node-gyp not found. In this case, it failed to run: ${err.message}`)
 
-    process.exit(1)
-  }
+      process.exit(1)
+    })
+  })
 
-  try {
-    await new Promise((resolve, reject) => {
-      const cmake = spawn('cmake', [ '--version' ])
+  console.log('[node-libsamplerate] node-gyp found')
 
-      cmake.on('close', (code) => {
-        if (code === 0) resolve()
-        else reject(new Error('cmake not found'))
-      })
+  await new Promise((resolve) => {
+    const cmake = spawn('cmake', [ '--version' ], { shell: true })
+
+    cmake.on('close', (code) => {
+      if (code === 0) resolve()
+      else {
+        console.error('[node-libsamplerate] cmake not found. In this case, it existed with non-0 code.')
+
+        process.exit(1)
+      }
     })
 
-    console.log('[node-libsamplerate] cmake found')
-  } catch (err) {
-    console.error(`[node-libsamplerate] Failed to run cmake: ${err.message}`)
+    cmake.on('error', (err) => {
+      console.error(`[node-libsamplerate] cmake not found. In this case, it failed to run: ${err.message}`)
 
-    process.exit(1)
-  }
+      process.exit(1)
+    })
+  })
 
-  try {
-    await new Promise((resolve, reject) => {
-      const make = spawn('make', [ '--version' ])
+  console.log('[node-libsamplerate] cmake found')
 
-      make.on('close', (code) => {
-        if (code === 0) resolve()
-        else reject(new Error('make not found'))
-      })
+  await new Promise((resolve) => {
+    const make = spawn('make', [ '--version' ], { shell: true })
+
+    make.on('close', (code) => {
+      if (code === 0) resolve()
+      else {
+        console.error('[node-libsamplerate] make not found. In this case, it existed with non-0 code.')
+
+        process.exit(1)
+      }
     })
 
-    console.log('[node-libsamplerate] make found')
-  } catch (err) {
-    console.error(`[node-libsamplerate] Failed to run make: ${err.message}`)
+    make.on('error', (err) => {
+      console.error(`[node-libsamplerate] make not found. In this case, it failed to run: ${err.message}`)
 
-    process.exit(1)
-  }
+      process.exit(1)
+    })
+  })
+
+  console.log('[node-libsamplerate] make found')
 
   console.log('[node-libsamplerate] OK. Everything good. Checking whether or not libsamplerate has been built')
 
@@ -89,7 +101,7 @@ import { spawn } from 'node:child_process'
     console.log('[node-libsamplerate] Entered in build directory. Running cmake...')
 
     await new Promise((resolve,) => {
-      const cmake = spawn('cmake', [ '-DCMAKE_BUILD_TYPE=Release', '..' ])
+      const cmake = spawn('cmake', [ '-DCMAKE_BUILD_TYPE=Release', '..' ], { shell: true })
 
       cmake.stdout.on('data', (data) => console.log(`[node-libsamplerate:cmake] ${data.toString()}`))
       cmake.stderr.on('data', (data) => console.error(`[node-libsamplerate:cmake] ${data.toString()}`))
@@ -107,7 +119,7 @@ import { spawn } from 'node:child_process'
     console.log('[node-libsamplerate] cmake ran successfully. Running make...')
 
     await new Promise((resolve) => {
-      const make = spawn('make', [ `-j${os.cpus().length}` ])
+      const make = spawn('make', [ `-j${os.cpus().length}` ], { shell: true })
 
       make.stdout.on('data', (data) => console.log(`[node-libsamplerate:make] ${data.toString()}`))
       make.stderr.on('data', (data) => console.error(`[node-libsamplerate:make] ${data.toString()}`))
@@ -138,7 +150,7 @@ import { spawn } from 'node:child_process'
   }
 
   await new Promise((resolve) => {
-    const make = spawn('make', [ `-j${os.cpus().length}` ])
+    const make = spawn('make', [ `-j${os.cpus().length}` ], { shell: true })
 
     make.stdout.on('data', (data) => console.log(`[node-libsamplerate:make] ${data.toString()}`))
     make.stderr.on('data', (data) => console.error(`[node-libsamplerate:make] ${data.toString()}`))

@@ -1,3 +1,12 @@
+2024-05-17  Pedro Olímpio        <ThePedroo AT github DOT com>
+
+    * CMakelists.txt, Makefile, src/src_linear.c, src/src_zoh.c
+    Removed the CMakeLists.txt file from the repository in favor of a totally
+    based Makefile build system.
+
+    Also fixed the issue where --std=c99 wouldn't have bools defined, by adding
+    stdbool.h to the src_linear.c and src_zoh.c files.
+
 2013-03-29  Erik de Castro Lopo  <erikd AT mega-nerd DOT com>
 
     * src/src_sinc.c

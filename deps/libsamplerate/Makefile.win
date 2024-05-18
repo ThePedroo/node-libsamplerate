@@ -1,0 +1,25 @@
+SRC_DIR = src
+OBJ_DIR = obj
+
+CFLAGS = /D PACKAGE=\"libsamplerate\" /D VERSION=\"0.2.2\" /DENABLE_SINC_BEST_CONVERTER /DENABLE_SINC_MEDIUM_CONVERTER /DENABLE_SINC_FAST_CONVERTER
+LDFLAGS = /I include /Isrc
+
+SRCS = $(SRC_DIR)\samplerate.c \
+       $(SRC_DIR)\src_linear.c \
+       $(SRC_DIR)\src_sinc.c   \
+       $(SRC_DIR)\src_zoh.c
+
+OBJS = samplerate.obj \
+       src_linear.obj \
+       src_sinc.obj   \
+       src_zoh.obj
+
+libsamplerate:
+    mkdir $(OBJ_DIR)
+    cl /c $(SRCS) $(CFLAGS) $(LDFLAGS)
+    lib /OUT:libsamplerate.lib $(OBJS)
+    del /Q *.obj
+    move libsamplerate.lib $(OBJ_DIR)\
+
+clean:
+    rmdir $(OBJ_DIR)
